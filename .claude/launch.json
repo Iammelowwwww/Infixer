@@ -1,0 +1,17 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "web",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "--cwd", "apps/web", "dev"],
+			"port": 8310
+		},
+		{
+			"name": "web-alt",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["--cwd", "apps/web", "--bun", "vite", "dev", "--port", "8311"],
+			"port": 8311
+		}
+	]
+}

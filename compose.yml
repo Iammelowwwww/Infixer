@@ -1,0 +1,88 @@
+# QBTools production stack.
+#   cp .env.example .env   # then edit
+#   docker compose up -d --build
+name: qbtools
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runtime
+      args:
+        VITE_SITE_URL: ${SITE_URL:-http://localhost:8310}
+        VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
+        VITE_ADSENSE_CLIENT: ${VITE_ADSENSE_CLIENT:-}
+        VITE_ADSENSE_SLOT_TOP: ${VITE_ADSENSE_SLOT_TOP:-}
+        VITE_ADSENSE_SLOT_BOTTOM: ${VITE_ADSENSE_SLOT_BOTTOM:-}
+        VITE_ANALYTICS_SRC: ${VITE_ANALYTICS_SRC:-}
+        VITE_ANALYTICS_DOMAIN: ${VITE_ANALYTICS_DOMAIN:-}
+        VITE_ANALYTICS_WEBSITE_ID: ${VITE_ANALYTICS_WEBSITE_ID:-}
+    image: qbtools:latest
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_PATH: /data/qbtools.db
+      PGLITE_DATA_DIR: /data/users
+      PORT: "8310"
+    ports:
+      - "${PORT:-8310}:8310"
+    volumes:
+      - qbtools-data:/data
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 128M
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:8310/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional, isolated local object storage. Production may use an existing RustFS.
+  rustfs:
+    image: rustfs/rustfs:latest
+    volumes:
+      - rustfs-data:/data
+    ports:
+      - "8315:9000"
+      - "8316:9001"
+    environment:
+      - RUSTFS_ACCESS_KEY
+      - RUSTFS_SECRET_KEY
+      - RUSTFS_ADDRESS=0.0.0.0:9000
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CORS_ALLOWED_ORIGINS=*
+      - RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS=*
+    command: /data
+    restart: unless-stopped
+
+volumes:
+  qbtools-data:
+  rustfs-data:
